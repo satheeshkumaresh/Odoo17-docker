@@ -1,0 +1,48 @@
+# Use the official Odoo 17 image as the base image
+FROM odoo:17
+
+# Switch to the root user to install dependencies
+USER root
+
+# Set environment variables
+ENV HOST=db
+ENV USER=odoo
+ENV PASSWORD=odoo
+ENV ADDONS_PATH=/mnt/extra-addons
+
+# Add the PostgreSQL APT repository to install the correct version of libpq-dev
+RUN apt-get update && apt-get install -y \
+    wget \
+    gnupg2 \
+    lsb-release \
+    && echo "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list \
+    && wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add - \
+    && apt-get update \
+    && apt-get install -y \
+    nano \
+    build-essential \
+    libpq-dev \
+    && apt-get clean
+
+# Create directories for custom addons and configuration
+RUN mkdir -p /mnt/extra-addons
+RUN mkdir -p /etc/odoo
+
+# Copy Odoo configuration file into the container
+COPY ./config/odoo.conf /etc/odoo/odoo.conf
+
+# Copy custom addons if you have any
+COPY ./addons /mnt/extra-addons/
+
+# Ensure the correct permissions are set on the addons and config directories
+RUN chown -R odoo: /mnt/extra-addons
+RUN chown -R odoo: /etc/odoo
+
+# Switch back to the odoo user
+USER odoo
+
+# Expose Odoo's default port
+EXPOSE 8069
+
+# Start Odoo with the specified configuration file
+CMD ["odoo", "--config=/etc/odoo/odoo.conf"]
